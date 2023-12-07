@@ -39,18 +39,16 @@ from torch.nn.utils.rnn import pad_sequence
 
 
 def encode_lang(lang, split, classifier):
-    batch = []
-    lengths = []
     lang_path = Path('common_voice_kpd') / lang
+    lang_embs = []
     for audio_path in (lang_path / split).glob('**/*.wav'):
         waveform = classifier.load_audio(str(audio_path))
-        batch.append(waveform)
-        lengths.append(waveform.shape[0])
-    lengths = torch.tensor(lengths)
-    rel_lengths = lengths / lengths.max()
-    batch = pad_sequence(batch, batch_first=True, padding_value=0)
-    emb = classifier.encode_batch(batch, rel_lengths)
-    emb_dir = Path('lang_embs')
+        batch = waveform.unsqueeze(0)
+        rel_length = torch.tensor([1.0])
+        emb = classifier.encode_batch(batch, rel_length)
+        lang_embs.append(emb)
+    emb = torch.cat(lang_embs).squeeze(1)
+    emb_dir = Path('lang_embs_2')
     emb_dir.mkdir(exist_ok=True)
     torch.save(emb, emb_dir / f'{lang}_{split}_emb.pt')
 
