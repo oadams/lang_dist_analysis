@@ -9,20 +9,25 @@ import tqdm
 from speechbrain.pretrained import EncoderClassifier
 
 
-def encode_lang(lang, split, classifier):
-    lang_path = Path('common_voice_kpd') / lang
+def encode_lang(lang_path, classifier):
+    lang_path = Path(lang_path)
+    lang = lang_path.name
+    print('Encoding language: ', lang)
+    emb_path = lang_path.parent / f'{lang}_emb.pt'
+    if emb_path.exists():
+        print(f'Already encoded {lang}, {emb_path} exists')
+        return
     lang_embs = []
-    for audio_path in (lang_path / split).glob('**/*.wav'):
+    for audio_path in tqdm.tqdm(list(lang_path.glob('**/*.wav'))):
         waveform = classifier.load_audio(str(audio_path))
         batch = waveform.unsqueeze(0)
         rel_length = torch.tensor([1.0])
         emb = classifier.encode_batch(batch, rel_length)
         lang_embs.append(emb)
     emb = torch.cat(lang_embs).squeeze(1)
-    emb_dir = Path('lang_embs_2')
-    emb_dir.mkdir(exist_ok=True)
-    torch.save(emb, emb_dir / f'{lang}_{split}_emb.pt')
+    torch.save(emb, emb_path)
 
+"""
 def encode_langs():
     classifier = EncoderClassifier.from_hparams(source="speechbrain/lang-id-commonlanguage_ecapa", savedir="pretrained_models/lang-id-commonlanguage_ecapa")
     for path in tqdm.tqdm(list(Path('common_voice_kpd').glob('*'))):
@@ -129,3 +134,12 @@ def distance_df(distance_functions):
 
 #df = distance_df([speechbrain_distance, l2v.inventory_distance, l2v.geographic_distance])
 #df
+"""
+
+if __name__ == '__main__':
+    for lang_path in Path('ATDS/5h-audio-all').glob('*'):
+        if not lang_path.is_dir():
+            continue
+        print(lang_path)
+        classifier = EncoderClassifier.from_hparams(source="speechbrain/lang-id-commonlanguage_ecapa", savedir="pretrained_models/lang-id-commonlanguage_ecapa")
+        encode_lang(lang_path, classifier)
