@@ -136,10 +136,38 @@ def distance_df(distance_functions):
 #df
 """
 
-if __name__ == '__main__':
+def create_speechbrain_embeddings():
     for lang_path in Path('ATDS/5h-audio-all').glob('*'):
         if not lang_path.is_dir():
             continue
         print(lang_path)
         classifier = EncoderClassifier.from_hparams(source="speechbrain/lang-id-commonlanguage_ecapa", savedir="pretrained_models/lang-id-commonlanguage_ecapa")
         encode_lang(lang_path, classifier)
+
+def compute_speechbrain_similarities():
+    langs = []
+    embs = []
+    for path in tqdm.tqdm(list(Path('ATDS/5h-audio-all').glob('*.pt'))):
+        lang = path.stem.split('_')[0]
+        emb = torch.load(path)
+        emb = emb.mean(0)
+        embs.append(emb)
+        langs.append(lang)
+    print(langs)
+    embs = torch.stack(embs)
+    embs = torch.nn.functional.normalize(embs, dim=1)
+    sims = embs @ embs.T
+    records = []
+    for i in range(len(langs)):
+        for j in range(len(langs)):
+            records.append((langs[i], langs[j], sims[i, j].item()))
+    df = pd.DataFrame(records, columns=['ref_lang', 'comp_lang', 'speechbrain_similarity'])
+    df.to_csv('speechbrain_similarities.csv')
+    return df
+
+
+
+if __name__ == '__main__':
+    create_speechbrain_embeddings()
+    df = compute_speechbrain_similarities()
+    print(df)
