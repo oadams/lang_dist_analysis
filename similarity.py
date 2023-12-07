@@ -1,5 +1,6 @@
 from collections import defaultdict
 from pathlib import Path
+import re
 
 import lang2vec.lang2vec as l2v
 import pandas as pd
@@ -28,81 +29,6 @@ def encode_lang(lang_path, classifier):
     torch.save(emb, emb_path)
 
 """
-def encode_langs():
-    classifier = EncoderClassifier.from_hparams(source="speechbrain/lang-id-commonlanguage_ecapa", savedir="pretrained_models/lang-id-commonlanguage_ecapa")
-    for path in tqdm.tqdm(list(Path('common_voice_kpd').glob('*'))):
-        lang = path.name
-        encode_lang(lang, 'test', classifier)
-
-langs = []
-embs = []
-for path in tqdm.tqdm(list(Path('common_voice_kpd').glob('*'))):
-    langs.append(path.name)
-    emb = torch.load(f'lang_embs_2/{path.name}_test_emb.pt')
-    emb = emb.squeeze(1).mean(0)
-    embs.append(emb)
-print(langs)
-embs = torch.stack(embs)
-embs = torch.nn.functional.normalize(embs, dim=1)
-sims = embs @ embs.T
-
-# Flatten the matrix to perform sorting
-flattened_matrix = sims.view(-1)  # Flatten the 2D matrix into a 1D tensor
-sorted_indices = torch.argsort(flattened_matrix, dim=0)
-
-# Retrieve row and column indices based on sorted indices
-row_indices = sorted_indices // sims.shape[1]
-col_indices = sorted_indices % sims.shape[1]
-
-language_codes = {
-    "Arabic": "ara",
-    "Basque": "eus",
-    "Breton": "bre",
-    "Catalan": "cat",
-    "Chinese_China": "zho",
-    "Chinese_Hongkong": "zho",
-    "Chinese_Taiwan": "zho",
-    "Chuvash": "chv",
-    "Czech": "ces",
-    "Dhivehi": "div",
-    "Dutch": "nld",
-    "English": "eng",
-    "Esperanto": "epo",
-    "Estonian": "est",
-    "French": "fra",
-    "Frisian": "fry",
-    "Georgian": "kat",
-    "German": "deu",
-    "Greek": "ell",
-    "Hakha_Chin": "cnr",  # No specific code in ISO 639-3, using ISO 639-2 code
-    "Indonesian": "ind",
-    "Interlingua": "ina",
-    "Italian": "ita",
-    "Japanese": "jpn",
-    "Kabyle": "kab",
-    "Kinyarwanda": "kin",
-    "Kyrgyz": "kir",
-    "Latvian": "lav",
-    "Maltese": "mlt",
-    "Mangolian": "mon",
-    "Persian": "fas",
-    "Polish": "pol",
-    "Portuguese": "por",
-    "Romanian": "ron",
-    "Romansh_Sursilvan": "roh",
-    "Russian": "rus",
-    "Sakha": "sah",
-    "Slovenian": "slv",
-    "Spanish": "spa",
-    "Swedish": "swe",
-    "Tamil": "tam",
-    "Tatar": "tat",
-    "Turkish": "tur",
-    "Ukranian": "ukr",
-    "Welsh": "cym"
-}
-code2lang = {v: k for k, v in language_codes.items()}
-
 def speechbrain_distance(lang1code, lang2code):
     lang1 = code2lang[lang1code]
     lang2 = code2lang[lang2code]
@@ -165,9 +91,27 @@ def compute_speechbrain_similarities():
     df.to_csv('speechbrain_similarities.csv')
     return df
 
+def load_atds_sims():
+    dfs = []
+    for path in Path('ATDS/').glob('atds_*.csv'):
+        df = pd.read_csv(path)
+        dfs.append(df[['ref_lang', 'comp_lang', 'atds']])
+    df = pd.concat(dfs).dropna()
+    return df
+
+def load_wandb_wers():
+    df = pd.read_csv('ATDS/wandb_export_2023-12-08T09 20 38.557+11 00.csv')
+    columns = [col for col in df.columns if re.match(r'.*xls-r_cpt_.*_.*test/wer', col)]
+    df = df[columns]
+    return df
 
 
 if __name__ == '__main__':
-    create_speechbrain_embeddings()
-    df = compute_speechbrain_similarities()
-    print(df)
+    #create_speechbrain_embeddings()
+    #df = compute_speechbrain_similarities()
+    #print(df)
+    #df = load_wandb_wers()
+    atds = load_atds_sims()
+    speechbrain = compute_speechbrain_similarities()
+    df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    x = 1
