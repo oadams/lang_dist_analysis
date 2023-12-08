@@ -128,7 +128,7 @@ def add_lang2vec_sims(df):
         df[lang2vec_func.__name__] = df.apply(lambda row: 1 - lang2vec_func(language_codes[row.ref_lang], language_codes[row.comp_lang]), axis=1)
     return df
 
-def wer_sim_correlation():
+def create_wer_and_sim_df():
     wers = load_wandb_wers()
     atds = load_atds_sims()
     speechbrain = compute_speechbrain_similarities()
@@ -139,15 +139,13 @@ def wer_sim_correlation():
     return df
 
 
+def create_sim_df():
+    atds = load_atds_sims()
+    speechbrain = compute_speechbrain_similarities()
+    df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    df = df.dropna()
+    df = add_lang2vec_sims(df)
+    return df
+
 if __name__ == '__main__':
-    #create_speechbrain_embeddings()
-    #df = compute_speechbrain_similarities()
-    #print(df)
-    #df = load_wandb_wers()
-    #---
-    #atds = load_atds_sims()
-    #speechbrain = compute_speechbrain_similarities()
-    #df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
-    ###---
-    df = wer_sim_correlation()
-    x = 1
+    df = create_wer_and_sim_df()
