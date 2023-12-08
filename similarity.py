@@ -100,9 +100,42 @@ def load_atds_sims():
     return df
 
 def load_wandb_wers():
-    df = pd.read_csv('ATDS/wandb_export_2023-12-08T09 20 38.557+11 00.csv')
-    columns = [col for col in df.columns if re.match(r'.*xls-r_cpt_.*_.*test/wer', col)]
+    #df = pd.read_csv('ATDS/wandb_export_2023-12-08T09 20 38.557+11 00.csv')
+    df = pd.read_csv('ATDS/wandb_export_2023-12-08T10 33 37.801+11 00.csv')
+    columns = [col for col in df.columns if re.match(r'.*xls-r_cpt.*test/wer', col)]
     df = df[columns]
+    df = df.T
+    df2 = pd.read_csv('ATDS/wandb_export_test2h_raw_wer.csv')
+    columns = [col for col in df2.columns if re.match(r'.*xls-r_cpt.*test-2h/raw_wer', col)]
+    df2 = df2[columns]
+    df2 = df2.T
+    df = pd.concat([df, df2])
+    def get_ref_lang(run):
+        match = re.match(r'.*xls-r_cpt_([a-z]*)-.*_([a-z]*)-.*wer', run)
+        if match is None:
+            return None
+        ref_lang = match.group(1)
+        return ref_lang
+    def get_comp_lang(run):
+        match = re.match(r'.*xls-r_cpt_([a-z]*)-.*_([a-z]*)-.*wer', run)
+        if match is None:
+            return None
+        comp_lang = match.group(2)
+        return comp_lang
+    df['ref_lang'] = df.index.map(get_ref_lang)
+    df['comp_lang'] = df.index.map(get_comp_lang)
+    df['wer'] = df[3]
+    df = df[['ref_lang', 'comp_lang', 'wer']]
+    df = df.drop_duplicates()
+    return df
+
+def wer_sim_correlation():
+    wers = load_wandb_wers()
+    atds = load_atds_sims()
+    speechbrain = compute_speechbrain_similarities()
+    df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    df = df.join(wers.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    df = df.dropna()
     return df
 
 
@@ -111,7 +144,10 @@ if __name__ == '__main__':
     #df = compute_speechbrain_similarities()
     #print(df)
     #df = load_wandb_wers()
-    atds = load_atds_sims()
-    speechbrain = compute_speechbrain_similarities()
-    df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    #---
+    #atds = load_atds_sims()
+    #speechbrain = compute_speechbrain_similarities()
+    #df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
+    ###---
+    df = wer_sim_correlation()
     x = 1
