@@ -28,39 +28,6 @@ def encode_lang(lang_path, classifier):
     emb = torch.cat(lang_embs).squeeze(1)
     torch.save(emb, emb_path)
 
-"""
-def speechbrain_distance(lang1code, lang2code):
-    lang1 = code2lang[lang1code]
-    lang2 = code2lang[lang2code]
-
-    lang1idx = langs.index(lang1)
-    lang2idx = langs.index(lang2)
-    return 1-sims[lang1idx, lang2idx].item()
-
-def distance_df(distance_functions):
-    records = []
-    langpairs = []
-    for i in tqdm.tqdm(range(len(langs))):
-        for j in range(len(langs)):
-            if i >= j:
-                continue
-            forget_it = False
-            row_dists = []
-            for f in distance_functions:
-                try:
-                    row_dists.append(f(language_codes[langs[i]], language_codes[langs[j]]))
-                except:
-                    forget_it = True
-                    break
-            if not forget_it:
-                langpairs.append((langs[i], langs[j]))
-                records.append(row_dists)
-    df = pd.DataFrame(records, index=langpairs, columns=[f.__name__ for f in distance_functions])
-    return df
-
-#df = distance_df([speechbrain_distance, l2v.inventory_distance, l2v.geographic_distance])
-#df
-"""
 
 def create_speechbrain_embeddings():
     for lang_path in Path('ATDS/5h-audio-all').glob('*'):
@@ -129,6 +96,38 @@ def load_wandb_wers():
     df = df.drop_duplicates()
     return df
 
+language_codes = {
+    'tamil': 'tam',
+    'malayalam': 'mal',
+    'urdu': 'urd',
+    'sepedi': 'nso',
+    'gujarati': 'guj',
+    'malay': 'msa',
+    'odia': 'ori',
+    'sesotho': 'sot',
+    'marathi': 'mar',
+    'iban': 'iba',
+    'setswana': 'tsn',
+    'bengali': 'ben',
+    'punjabi': 'pan',
+    'indonesian': 'ind',
+    'hindi': 'hin',
+}
+
+def add_lang2vec_sims(df):
+    import lang2vec.lang2vec as l2v
+    lang2vec_funcs = [
+        l2v.syntactic_distance,
+        l2v.geographic_distance,
+        l2v.phonological_distance,
+        l2v.genetic_distance,
+        l2v.inventory_distance,
+        l2v.featural_distance,
+    ]
+    for lang2vec_func in lang2vec_funcs:
+        df[lang2vec_func.__name__] = df.apply(lambda row: 1 - lang2vec_func(language_codes[row.ref_lang], language_codes[row.comp_lang]), axis=1)
+    return df
+
 def wer_sim_correlation():
     wers = load_wandb_wers()
     atds = load_atds_sims()
@@ -136,6 +135,7 @@ def wer_sim_correlation():
     df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
     df = df.join(wers.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
     df = df.dropna()
+    df = add_lang2vec_sims(df)
     return df
 
 
