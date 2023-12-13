@@ -68,7 +68,8 @@ def load_atds_sims():
 
 def load_wandb_wers():
     #df = pd.read_csv('ATDS/wandb_export_2023-12-08T09 20 38.557+11 00.csv')
-    df = pd.read_csv('ATDS/wandb_export_2023-12-08T10 33 37.801+11 00.csv')
+    #df = pd.read_csv('ATDS/wandb_export_2023-12-08T10 33 37.801+11 00.csv')
+    df = pd.read_csv('20231210_asr-results.csv')
     columns = [col for col in df.columns if re.match(r'.*xls-r_cpt.*test/wer', col)]
     df = df[columns]
     df = df.T
@@ -95,6 +96,27 @@ def load_wandb_wers():
     df = df[['ref_lang', 'comp_lang', 'wer']]
     df = df.drop_duplicates()
     return df
+
+def load_wers():
+    df = pd.read_csv('20231210_asr-results.csv')
+    df = df.dropna()
+    def get_comp_lang(cpt_data):
+        match = re.match(r'.*_(.*?)-.*', cpt_data)
+        if match is None:
+            return None
+        ref_lang = match.group(1)
+        return ref_lang
+    df['comp_lang'] = df.CPT_data.map(get_comp_lang)
+    df = df.dropna()
+    df = df[df['comp_lang'] != 'aug']
+    df = df[df['target_lang'] == 'Punjabi']
+    df['ref_lang'] = df['target_lang']
+    df['ref_lang'] = df['ref_lang'].str.lower()
+    df['wer'] = df['test_wer']
+    return df
+
+#wandb = load_wandb_wers()
+#wer = load_wers()
 
 language_codes = {
     'tamil': 'tam',
@@ -152,7 +174,7 @@ def add_lang2vec_sims(df):
     return df
 
 def create_wer_and_sim_df():
-    wers = load_wandb_wers()
+    wers = load_wers()
     atds = load_atds_sims()
     speechbrain = compute_speechbrain_similarities()
     df = atds.join(speechbrain.set_index(['ref_lang', 'comp_lang']), on=['ref_lang', 'comp_lang'])
