@@ -114,6 +114,27 @@ language_codes = {
     'hindi': 'hin',
 }
 
+def lang2vec_learned_distance(lang1, lang2):
+    if lang1 not in l2v.LEARNED_LANGUAGES or lang2 not in l2v.LEARNED_LANGUAGES:
+        return None
+    x = torch.tensor(l2v.get_features(lang1, 'learned')[lang1])
+    y = torch.tensor(l2v.get_features(lang2, 'learned')[lang2])
+    return 1 - torch.nn.functional.cosine_similarity(x, y, dim=0, eps=1e-8).item()
+
+def lang2vec_mean_distance(lang1, lang2):
+    lang2vec_funcs = [
+        l2v.syntactic_distance,
+        l2v.geographic_distance,
+        l2v.phonological_distance,
+        l2v.genetic_distance,
+        l2v.inventory_distance,
+        l2v.featural_distance,
+    ]
+    dists = []
+    for l2v_func in lang2vec_funcs:
+        dists.append(l2v_func(language_codes[lang1], language_codes[lang2]))
+    return sum(dists) / len(dists)
+
 def add_lang2vec_sims(df):
     import lang2vec.lang2vec as l2v
     lang2vec_funcs = [
@@ -126,6 +147,8 @@ def add_lang2vec_sims(df):
     ]
     for lang2vec_func in lang2vec_funcs:
         df[lang2vec_func.__name__] = df.apply(lambda row: 1 - lang2vec_func(language_codes[row.ref_lang], language_codes[row.comp_lang]), axis=1)
+    #df['lang2vec_learned_distance'] = df.apply(lambda row: lang2vec_learned_distance(language_codes[row.ref_lang], language_codes[row.comp_lang]), axis=1)
+    df['lang2vec_mean_distance'] = df[[lang2vec_func.__name__ for lang2vec_func in lang2vec_funcs]].mean(axis=1)
     return df
 
 def create_wer_and_sim_df():
