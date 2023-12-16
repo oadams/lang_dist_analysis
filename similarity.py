@@ -98,7 +98,8 @@ def load_wandb_wers():
     return df
 
 def load_wers():
-    df = pd.read_csv('20231210_asr-results.csv')
+    df = pd.read_csv('20231214_punjabi_werr.csv')
+    #df = pd.read_csv('20231210_asr-results.csv')
     df = df.dropna()
     def get_comp_lang(cpt_data):
         match = re.match(r'.*_(.*?)-.*', cpt_data)
@@ -109,10 +110,9 @@ def load_wers():
     df['comp_lang'] = df.CPT_data.map(get_comp_lang)
     df = df.dropna()
     df = df[df['comp_lang'] != 'aug']
-    df = df[df['target_lang'] == 'Punjabi']
+    #df = df[df['target_lang'] == 'Punjabi']
     df['ref_lang'] = df['target_lang']
     df['ref_lang'] = df['ref_lang'].str.lower()
-    df['wer'] = df['test_wer']
     return df
 
 #wandb = load_wandb_wers()
